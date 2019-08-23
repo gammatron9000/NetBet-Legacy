@@ -1,0 +1,112 @@
+﻿@model int
+
+<div ng-app="app" ng-controller="EventCreateController">
+    <h2 style="width: 80%;">
+        Create Event
+        <a class="btn btn-primary pull-right" href="/seasons/index/@Model"><i class="fa fa-reply"></i> Back to Season</a>
+    </h2>
+    <table class="table table-bordered">
+        <tbody>
+            <tr>
+                <td><strong>Name</strong></td>
+                <td><input type="text" ng-model="create.EventName" /></td>
+            </tr>
+            <tr>
+                <td><strong>Start Time</strong></td>
+                <td>
+                    <input type="date" ng-model="startDate" />
+                    <input type="time" ng-model="startTime" />
+                </td>                
+            </tr>
+        </tbody>
+    </table>
+
+    <h4 style="width: 40%;">
+        Matches
+        <button class="btn btn-primary pull-right" style="margin-top: -12px;" ng-click="addMatch()">
+            <i class="fa fa-plus"></i> Add Match
+        </button>
+    </h4>
+    <table class="table table-bordered table-condensed" style="width: 70%;">
+        <tbody>
+            <tr ng-repeat="m in matches | orderBy:'MatchNumber'">
+                <td class="matchCell">
+                    <div><span class="smallText">Fighter</span></div>
+                    <input type="text" ng-model="m.Line1.FighterName" />
+                </td>
+                <td>
+                    <div><span class="smallText">Odds</span></div>
+                    <input type="number" class="smallTextBox" ng-model="m.Line1.Odds" />
+                </td>
+                <td class="vsCell"><span>VS</span></td>
+                <td class="matchCell">
+                    <div><span class="smallText">Fighter</span></div>
+                    <input type="text" ng-model="m.Line2.FighterName" />
+                </td>
+                <td>
+                    <div><span class="smallText">Odds</span></div>
+                    <input type="number" class="smallTextBox" ng-model="m.Line2.Odds" />
+                </td>
+                <td style="vertical-align: middle; width: 50px;">
+                    <button class="btn btn-default" ng-click="removeMatch($index)"><i class="fa fa-remove" style="color: red;"></i></button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top: 30px;">
+        <button class="btn btn-success" ng-click="saveEvent()">Save</button>
+        <a class="btn btn-primary" href="/seasons/index/@Model">Cancel</a>
+    </div>
+</div>
+
+
+
+<script>
+    (function () {
+        var seasonID = @Model;
+        angular.module('app', []).controller('EventCreateController', function ($scope, $http, toast) {
+            $scope.create = {
+                EventName: '',
+                StartTime: new Date(),
+                Matches: [],
+                SeasonID: seasonID
+            };
+            $scope.startDate = new Date();
+            $scope.startTime = new Date(0, 0, 0, 0, 0, 0, 0);
+            $scope.matches = [];
+
+            $scope.addMatch = function() {
+                $scope.matches.push({
+                    Line1: { FighterName: '', Odds: 0, MatchNumber: $scope.matches.length },
+                    Line2: { FighterName: '', Odds: 0, MatchNumber: $scope.matches.length }
+                });
+            };
+
+            // add 12 blank matches at start
+            for (var i=1; i<=12; i++)
+            { $scope.addMatch(); }
+
+            $scope.removeMatch = function(index) {
+                $scope.matches.splice(index, 1);
+            };
+
+            $scope.saveEvent = function() {
+                var d = $scope.startDate;
+                var t = $scope.startTime;
+                $scope.create.StartTime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), t.getHours(), t.getMinutes());
+                var lineone = _.pluck($scope.matches, 'Line1');
+                var linetwo = _.pluck($scope.matches, 'Line2');
+                var allLines = lineone.concat(linetwo);
+                allLines = _.sortBy(allLines, function(x) { return x.MatchNumber; });
+                $scope.create.BetLines = allLines;
+                
+                $http.post('/api/saveEvent', $scope.create).then(function(data) {
+                    console.log(data);
+                    toast.success('Event Saved');
+                });
+            };
+
+        });
+    })();
+</script>

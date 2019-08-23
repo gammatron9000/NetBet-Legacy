@@ -1,0 +1,71 @@
+﻿<div ng-app="app" ng-controller="CreateSeasonController">
+
+    <h2>Create a season</h2>
+
+    <table class="table table-bordered">
+        <tbody>
+            <tr>
+                <td><strong>Season Name</strong></td>
+                <td><input type="text" ng-model="create.SeasonName" /></td>
+            </tr>
+            <tr>
+                <td><strong>Description</strong></td>
+                <td><input type="text" ng-model="create.Description" /></td>
+            </tr>
+            <tr>
+                <td><strong>Starting Cash</strong></td>
+                <td><input type="number" ng-model="create.StartingCash" /></td>
+            </tr>
+            <tr>
+                <td><strong>Minimum Cash</strong></td>
+                <td><input type="number" ng-model="create.MinimumCash" /></td>
+            </tr>
+            <tr>
+                <td><strong>End Time</strong></td>
+                <td><input type="date" ng-model="create.EndTime" /></td>
+            </tr>
+            <tr>
+                <td><strong>Players</strong></td>
+                <td>
+                    <div isteven-multi-select
+                         input-model="availablePlayers"
+                         output-model="create.Players"
+                         button-label="PlayerName"
+                         item-label="PlayerName"
+                         tick-property="ticked">
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div>
+        <button class="btn btn-success" ng-click="save()">Save</button>
+        <a class="btn btn-primary" href="/">Cancel</a>
+    </div>
+
+</div>
+
+<script type="text/javascript">
+    (function () {
+        angular.module('app', [ 'isteven-multi-select' ]).controller('CreateSeasonController', function ($scope, $http) {
+            $scope.create = {};
+            $scope.availablePlayers = [];
+
+            $http.get('/api/players').then(function (data) {
+                $scope.availablePlayers = data.data;
+            });
+
+            $scope.addPlayer = function () {
+            };
+
+            $scope.save = function () {
+                $http.post('/api/createSeason', $scope.create).then(function (data) {
+                    //window.location.href = '/';
+                    console.log(data);
+                });
+            };
+
+        });
+    })();
+</script>

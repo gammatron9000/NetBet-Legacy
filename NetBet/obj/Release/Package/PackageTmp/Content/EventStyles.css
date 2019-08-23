@@ -1,0 +1,92 @@
+﻿.smallTextBox {
+    width: 50px;
+}
+
+.smallText {
+    font-size: smaller;
+}
+
+.hugeText {
+    font-size: 50px;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.vsCell {
+    width: 50px;
+}
+
+.vsCell span {
+    vertical-align: middle;
+    font-size: 30px;
+}
+
+.fightResult {
+    border-radius: 3px;
+    font-size: 10px;
+    font-family: sans-serif;
+    font-style: italic;
+    font-weight: 800;
+    text-align: center;
+    padding: 2px;
+    text-transform: uppercase;
+    min-width: 50px;
+    display: inline-block;
+    margin: 3px 0;
+    cursor: pointer;
+}
+
+.fightResultSmall {
+    border-radius: 3px;
+    font-size: 14px;
+    font-family: sans-serif;
+    font-style: italic;
+    font-weight: 800;
+    text-align: center;
+    padding: 3px;
+    margin: 2px 0;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.Win {
+    background-color: #090;
+    color: #FFF;
+}
+
+.Lose {
+    background-color: #C00;
+    color: #FFF;
+}
+
+.TBD {
+    background-color: #CCC;
+    color: #000;
+}
+
+.liveBetCell {
+    font-size: medium;
+    width: 50px;
+    text-align: center;
+}
+
+.playerTotalPositive {
+    color: darkgreen;
+    font-weight: bold;
+}
+
+.playerTotalNegative {
+    color: red;
+}
+
+.playerTotalEven {
+    color: black;
+}
+
+.betWin {
+    background-color: #d9ead3;
+}
+
+.betLose {
+    background-color: #f4cccc;
+}

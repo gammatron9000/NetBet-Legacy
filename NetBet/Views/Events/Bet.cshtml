@@ -1,0 +1,385 @@
+﻿@model int
+<div ng-app="app" ng-controller="EventBetController">
+    <h2 style="width: 80%;">
+        Bet on {{::event.EventName}}
+        <a class="btn btn-primary pull-right" href="/seasons/index/{{event.SeasonID}}"><i class="fa fa-reply"></i> Back to Season</a>
+    </h2>
+    <!--List of Matches-->
+    <div class="col-xs-6">
+        <table class="table table-condensed table-bordered table-striped table-responsive">
+            <tbody>
+                <tr ng-repeat="m in matches | orderBy:'MatchNumber'">
+                    <td>
+                        <div>
+                            <div>
+                                <button class="btn btn-default btn-xs" ng-click="addToBetSlip(m.Line1)" ng-disabled="m.Resolved">
+                                    <i class="fa fa-plus fa-lg" style="color: forestgreen;"></i>
+                                    {{::m.Line1.FighterName}} {{::m.Line1.Odds | number:2}}
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span>VS</span></td>
+                    <td>
+                        <div>
+                            <button class="btn btn-xs btn-default" ng-click="addToBetSlip(m.Line2)" ng-disabled="m.Resolved">
+                                <i class="fa fa-plus fa-lg" style="color: forestgreen;"></i>
+                                {{::m.Line2.FighterName}} {{::m.Line2.Odds | number:2}}
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4 style="margin-top: 15px;">Fighter Stats</h4>
+        <table class="table table-condensed table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Fighter</th>
+                    <th>As Favorite</th>
+                    <th>As Underdog</th>
+                    <th>Total Payout</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="s in fighterStats">
+                    <td>{{s.FighterName}}</td>
+                    <td>{{s.WinsAsFavorite}}W {{s.LossesAsFavorite}}L</td>
+                    <td>{{s.WinsAsUnderdog}}W {{s.LossesAsUnderdog}}L</td>
+                    <td>{{::getTotalOdds(s.TotalOdds) | number:2}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!--Bet Slip-->
+    <div class="col-xs-5">
+        <h4 class="well">
+            <select ng-options="p for p in availablePlayers | orderBy: p" ng-model="selectedPlayer" ng-change="playerSelectionChange()"></select>
+            <span class="pull-right">Remaining Cash: {{currentPlayerCash | currency}}</span>
+        </h4>
+        <h4>
+            Bet Slip
+        </h4>
+        <div ng-show="betSlip.length > 0">
+            <table class="table table table-condensed table-bordered">
+                <thead>
+                    <tr>
+                        <th>Bet</th>
+                        <th>Stake</th>
+                        <th>To Win</th>
+                        <th>Remove</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="bet in betSlip">
+                        <td>{{bet.FighterName}} {{bet.Odds | number:2}}</td>
+                        <td><input type="number" min="1" ng-model="bet.Stake" ng-disabled="isParlay" style="width: 60px;" tabindex="{{$index + 1}}" id="stake{{bet.MatchNumber}}" /></td>
+                        <td><input style="width: 50px;" disabled="disabled" readonly="readonly" value="{{calculateToWin(bet)}}" /></td>
+                        <td>
+                            <button class="btn btn-default btn-xs" ng-click="removeBet($index)" tabindex="999">
+                                <i class="fa fa-remove" style="color: red;"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Total</td>
+                        <td>{{getBetSlipTotalStake() | currency}}</td>
+                        <td>{{getBetSlipTotalToWin() | currency}}</td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="alert" ng-class="{ 'alert-success': isParlay, 'alert-warning': !isParlay }">
+                <table class="table table-condensed">
+                    <tbody>
+                        <tr>
+                            <td>
+                                <div><span class="smallText">Parlay</span></div>
+                                <button class="btn btn-default btn-sm" ng-click="toggleParlay()">
+                                    <i class="fa" ng-class="{ 'fa-check': isParlay, 'fa-remove': !isParlay }"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <div><span class="smallText">Odds</span></div>
+                                <div><span>{{calculateParlayOdds() | number:2}}</span></div>
+                            </td>
+                            <td>
+                                <div><span class="smallText">Stake</span></div>
+                                <input type="number" ng-model="ParlayStake" ng-disabled="!isParlay" min="1" style="width: 60px;" />
+                            </td>
+                            <td>
+                                <div><span class="smallText">To Win</span></div>
+                                <input style="width: 50px;" disabled="disabled" readonly="readonly" value="{{calculateParlayToWin()}}" />
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <button class="btn btn-success" ng-click="placeBets()">Place Bets</button>
+
+        </div>
+
+        <!--EXISTING BETS-->
+        <div ng-show="existingBets.length > 0">
+            <hr />
+            <h4>Existing Bets for this Event</h4>
+            <table class="table table-condensed table-bordered table-striped">
+                <thead>
+                    <tr>
+                        <th>Bet</th>
+                        <th>Odds</th>
+                        <th>Stake</th>
+                        <th>To Win</th>
+                        <th>Cancel</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="bet in existingBets">
+                        <td>
+                            <div ng-repeat="indv in bet.IndividualBets | orderBy: 'MatchNumber'">
+                                {{indv.FighterName}}
+                            </div>
+                        </td>
+                        <td>{{bet.Odds | number:2}}</td>
+                        <td>{{bet.Stake | currency}}</td>
+                        <td>{{calculateToWin(bet) | currency}}</td>
+                        <td>
+                            <button class="btn btn-default btn-xs" ng-click="cancelExistingBet(bet)" ng-disabled="disableBetCancel(bet)" tabindex="999">
+                                <i class="fa fa-remove" style="color: red;"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Total</td>
+                        <td></td>
+                        <td>{{getExistingBetsTotalStake() | currency}}</td>
+                        <td>{{getExistingBetsTotalToWin() | currency}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+
+
+<script type="text/javascript">
+    (function () {
+        var eventID = @Model;
+
+        angular.module('app', []).controller('EventBetController', function ($scope, $http, $timeout, toast) {
+            $scope.event = {};
+            $scope.matches = [];
+            $scope.availablePlayers = [];
+            $scope.selectedPlayer = '';
+            $scope.existingBets = [];
+            $scope.fighterStats = [];
+            $scope.currentPlayerCash = 0;
+            $http.get('/api/getFullEvent/' + eventID).then(function(data) {
+                $scope.event = data.data;
+                var groupedMatches = _.groupBy($scope.event.BetLines, 'MatchNumber');
+                angular.forEach(groupedMatches, function(match) {
+                    var resolved = _.some(match, function(m) { return m.Result === 1 || m.Result === 2 });
+                    $scope.matches.push({
+                        Resolved: resolved,
+                        Line1: { FighterName: match[0].FighterName, Odds: match[0].Odds, MatchNumber: match[0].MatchNumber },
+                        Line2: { FighterName: match[1].FighterName, Odds: match[1].Odds, MatchNumber: match[1].MatchNumber }
+                    });
+                });
+                $http.get('/api/getPlayersForSeason/' + $scope.event.SeasonID).then(function(playersdata) {
+                    $scope.availablePlayers = playersdata.data;
+                    $scope.selectedPlayer = $scope.availablePlayers[0];
+                    $scope.getExistingBetsForPlayer();
+                    $scope.getPlayerStats();
+                });
+            });
+
+            $http.get('/api/stats/' + eventID).then(function(data) {
+                if(data && data.data.FighterStats) {
+                    $scope.fighterStats = data.data.FighterStats;
+                }
+            });
+
+            $scope.getPlayerStats = function() {
+                var postData = { SeasonID: $scope.event.SeasonID, PlayerName: $scope.selectedPlayer };
+                $http.post('/api/getCurrentPlayerStats', postData).then(function(data) {
+                    if (data.data && data.data.CashResult) {
+                        $scope.currentPlayerCash = data.data.CashResult;
+                    }
+                });
+            };
+
+            $scope.betSlip = [];
+            $scope.isParlay = false;
+            $scope.ParlayStake = 0;
+
+            $scope.addToBetSlip = function(line) {
+                var slipNames = _.pluck($scope.betSlip, 'FighterName');
+                if (_.contains(slipNames, line.FighterName)) { return; }
+                var bet = {};
+                bet.Odds = line.Odds;
+                bet.FighterName = line.FighterName;
+                bet.Stake = '';
+                bet.Result = 'TBD';
+                bet.MatchNumber = line.MatchNumber;
+                $scope.betSlip.push(bet);
+                $scope.timeoutPromise = $timeout(autoFocusEvent, 50, false, line); // give it a second to draw to dom
+            };
+            function autoFocusEvent(line) { // auto-focus on the stake field after the dom element is drawn
+                var elem = $("#stake" + line.MatchNumber);
+                elem.focus();
+                $timeout.cancel($scope.timeoutPromise);
+            }
+
+            $scope.removeBet = function (index) {
+                $scope.betSlip.splice(index, 1);
+            };
+
+            $scope.toggleParlay = function() {
+                $scope.isParlay = !$scope.isParlay;
+                if ($scope.isParlay === false) { $scope.ParlayStake = 0; }
+            };
+
+            $scope.calculateParlayOdds = function() {
+                var allOdds = _.pluck($scope.betSlip, 'Odds');
+                var result = 1; // start at 1 to not multiply by 0
+                angular.forEach(allOdds, function(val) {
+                    result = result * val;
+                });
+                return Math.round(result * 100) / 100;
+            };
+
+            $scope.calculateParlayToWin = function() {
+                return Math.round((($scope.calculateParlayOdds() * $scope.ParlayStake) - $scope.ParlayStake) * 100) / 100;
+            };
+
+            $scope.calculateToWin = function(bet) {
+                var value = Math.round(((bet.Odds * bet.Stake) - bet.Stake) * 100) / 100;
+                if (isNaN(value)) { return 0; }
+                else return value;
+            };
+
+            $scope.getBetSlipTotalStake = function() {
+                return _.sum($scope.betSlip, function(x) { return x.Stake; });
+            };
+
+            $scope.getBetSlipTotalToWin = function() {
+                var towins = [];
+                _.forEach($scope.betSlip, function(v) { 
+                    towins.push($scope.calculateToWin(v));
+                });
+                return _.sum(towins, function(x) { return x; });
+            };
+
+            $scope.getExistingBetsTotalStake = function() {
+                return _.sum($scope.existingBets, function(x) { return x.Stake; });
+            };
+
+            $scope.getExistingBetsTotalToWin = function() {
+                var towins = [];
+                _.forEach($scope.existingBets, function(v) { 
+                    towins.push($scope.calculateToWin(v));
+                });
+                return _.sum(towins, function(x) { return x; });
+            };
+
+            $scope.placeBets = function() {
+                if ($scope.isParlay) {
+                    if ($scope.ParlayStake <= 0 || !$scope.ParlayStake) {
+                        console.log('stake must be more than 0');
+                        return;
+                    }
+                }
+                else {
+                    if (_.some($scope.betSlip, function(bet) { return bet.Stake <= 0 || !bet.Stake; }))
+                    { console.log('all bets must be more than 0'); return; }
+                }
+
+                var dto = {
+                    PlayerName: $scope.selectedPlayer,
+                    EventID: eventID,
+                    SeasonID: $scope.event.SeasonID,
+                    isParlay: $scope.isParlay,
+                    ParlayStake: $scope.ParlayStake,
+                    Wagers: $scope.betSlip
+                };
+
+                $http.post('/api/placeBet', dto).then(function(data) {
+                    if (angular.isString(data.data)) {
+                        if (data.data.toLowerCase().startsWith("error")) {
+                            toast.fail(data.data);
+                        }
+                        else 
+                        { toast.success(data.data); }
+                    }
+                    $scope.getExistingBetsForPlayer();
+                    $scope.getPlayerStats();
+                });
+
+                $scope.betSlip = [];
+                $scope.isParlay = false;
+                $scope.ParlayStake = 0;
+            };
+
+            $scope.playerSelectionChange = function() {
+                $scope.getExistingBetsForPlayer();
+                $scope.getPlayerStats();
+            }
+
+            $scope.getExistingBetsForPlayer = function() {
+                $scope.existingBets = [];
+                var postData = { EventID: eventID, PlayerName: $scope.selectedPlayer };
+                $http.post('/api/getUsersBetsForEvent/', postData).then(function(data) {
+                    $scope.existingBets = data.data;
+                });
+            };
+
+            $scope.cancelExistingBet = function(bet) {
+                var names = _.pluck(bet.IndividualBets, 'FighterName');
+                var namesStr = names.join(' + ');
+                $.confirm({
+                    title: "Cancel bet on " + namesStr,
+                    content: 'Are you sure?',
+                    confirmButton: 'Yes',
+                    cancelButton: 'No', 
+                    confirmButtonClass: 'btn-success', 
+                    cancelButtonClass: 'btn-danger', 
+                    confirm: function() {
+                        postCancelBet(bet);
+                    },
+                    cancel: function() { }
+                });
+            };
+
+            function postCancelBet(bet) {
+                var postData = { EventID: eventID, Bet: bet, Username: $scope.selectedPlayer };
+                $http.post('/api/cancelExistingBet/', postData).then(function(data) {
+                    $scope.existingBets = data.data;
+                });
+            }
+
+            $scope.disableBetCancel = function(bet) {
+                var allResults = _.pluck(bet.IndividualBets, 'Result');
+                var resultSum = _.sum(allResults);
+                if (bet.Result == 0 &&
+                    resultSum == 0) {
+                    return false;
+                }
+                else return true;
+            };
+
+
+            $scope.getTotalOdds = function(odds) {
+                if (odds === 1) {
+                    return '-';
+                }
+                else return odds;
+            };
+
+        });
+    })();
+</script>

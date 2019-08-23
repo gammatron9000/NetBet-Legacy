@@ -1,0 +1,126 @@
+﻿@model int
+
+<div ng-app="app" ng-controller="EventEditController">
+    <h2 style="width: 80%;">
+        Edit Event
+        <a class="btn btn-primary pull-right" href="/seasons/index/{{edit.SeasonID}}"><i class="fa fa-reply"></i> Back to Season</a>
+    </h2>
+    <table class="table table-bordered">
+        <tbody>
+            <tr>
+                <td><strong>Name</strong></td>
+                <td><input type="text" ng-model="edit.EventName" /></td>
+            </tr>
+            <tr>
+                <td><strong>Start Time</strong></td>
+                <td>
+                    <input type="date" ng-model="startDate" />
+                    <input type="time" ng-model="startTime" />
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4 style="width: 40%;">
+        Matches
+        <button class="btn btn-primary pull-right" style="margin-top: -12px;" ng-click="addMatch()">
+            <i class="fa fa-plus"></i> Add Match
+        </button>
+    </h4>
+    <table class="table table-bordered table-condensed" style="width: 70%;">
+        <tbody>
+            <tr ng-repeat="m in matches | orderBy:'MatchNumber'">
+                <td class="matchCell">
+                    <div><span class="smallText">Fighter</span></div>
+                    <input type="text" ng-model="m.Line1.FighterName" />
+                </td>
+                <td>
+                    <div><span class="smallText">Odds</span></div>
+                    <input type="number" class="smallTextBox" ng-model="m.Line1.Odds" />
+                </td>
+                <td class="vsCell"><span>VS</span></td>
+                <td class="matchCell">
+                    <div><span class="smallText">Fighter</span></div>
+                    <input type="text" ng-model="m.Line2.FighterName" />
+                </td>
+                <td>
+                    <div><span class="smallText">Odds</span></div>
+                    <input type="number" class="smallTextBox" ng-model="m.Line2.Odds" />    
+                </td>
+                <td style="vertical-align: middle; width: 50px;">
+                    <button class="btn btn-default" ng-click="removeMatch(m)"><i class="fa fa-remove" style="color: red;"></i></button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top: 30px;">
+        <button class="btn btn-success" ng-click="saveEvent()">Save</button>
+        <a class="btn btn-primary" href="/seasons/index/{{edit.SeasonID}}">Cancel</a>
+    </div>
+</div>
+
+
+
+<script>
+    (function () {
+        var eventID = @Model;
+        angular.module('app', []).controller('EventEditController', function ($scope, $http, toast) {
+            $scope.edit = {};
+            $scope.startDate = new Date();
+            $scope.startTime = new Date(0, 0, 0, 0, 0, 0, 0);
+            $scope.matches = [];
+
+            function populateMatches(data) {
+                $scope.edit = data.data;
+                var d = new Date(Date.parse($scope.edit.StartTime));
+                $scope.startDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                $scope.startTime = new Date(0, 0, 0, d.getHours(), d.getMinutes(), 0, 0);
+                var groupedMatches = _.groupBy($scope.edit.BetLines, 'MatchNumber');
+                angular.forEach(groupedMatches, function(match) {
+                    $scope.matches.push({ 
+                        Line1: { FighterName: match[0].FighterName, Odds: match[0].Odds, MatchNumber: match[0].MatchNumber },
+                        Line2: { FighterName: match[1].FighterName, Odds: match[1].Odds, MatchNumber: match[1].MatchNumber }
+                    });
+                });
+            }
+
+            $http.get('/api/getFullEvent/' + eventID).then(function(data) {
+                populateMatches(data);
+            });
+            
+            $scope.addMatch = function() {
+                $scope.matches.push({
+                    Line1: { FighterName: '', Odds: 0, MatchNumber: $scope.matches.length },
+                    Line2: { FighterName: '', Odds: 0, MatchNumber: $scope.matches.length }
+                });
+            };
+
+            $scope.removeMatch = function(match) {
+                var postData = { EventID: eventID, Line1: match.Line1, Line2: match.Line2 };
+                $http.post('/api/deleteSingleLine', postData).then(function(data) {
+                    if (data.data != null) {
+                        populateMatches(data);
+                    }
+                });
+            };
+
+            $scope.saveEvent = function() {
+                var d = $scope.startDate;
+                var t = $scope.startTime;
+                $scope.edit.StartTime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), t.getHours(), t.getMinutes());
+                var lineone = _.pluck($scope.matches, 'Line1');
+                var linetwo = _.pluck($scope.matches, 'Line2');
+                var allLines = lineone.concat(linetwo);
+                allLines = _.sortBy(allLines, function(x) { return x.MatchNumber; });
+                $scope.edit.BetLines = allLines;
+
+                $http.post('/api/saveEvent', $scope.edit).then(function(data) {
+                    console.log(data);
+                    toast.success('Event Saved')
+                });
+            };
+
+        });
+    })();
+</script>

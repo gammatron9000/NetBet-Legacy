@@ -1,0 +1,167 @@
+﻿@model int
+
+<div ng-app="app" ng-controller="SeasonController">
+    <h2 style="width: 80%;">
+        {{season.SeasonName}}
+        @*<button class="btn btn-danger pull-right" ng-click="resetSeason()">Reset Season</button>*@
+        @*<button class="btn btn-primary pull-right" ng-click="editSeason()">Edit Season</button>*@
+    </h2>
+    <hr />
+    <div class="col-xs-9">
+        <h4>
+            Events
+            <a class="btn btn-primary pull-right" href="/events/create/@Model" style="margin-top: -12px;">Create Event</a>
+        </h4>
+        <table class="table table-bordered">
+            <tbody>
+                <tr ng-repeat-start="event in season.Events | orderBy: '-StartTime'">
+                    <td style="width: 50px;"><a href="/events/live/{{::event.Id}}" class="btn btn-success">Live</a></td>
+                    <td style="width: 50px;"><a href="/events/bet/{{::event.Id}}" class="btn btn-default">Bet</a></td>
+                    <td style="width: 50px;"><a href="/events/edit/{{::event.Id}}" class="btn btn-default">Edit</a></td>
+                    <td style="vertical-align: middle;">{{::event.EventName}}</td>
+                    <td style="vertical-align: middle; width: 250px;">{{::getDateString(event.StartTime)}}</td>
+                    <td><button class="btn btn-default btn-sm" data-toggle="collapse" data-target="#eventBreakdown{{::event.Id}}"><i class="fa fa-caret-down"></i></button></td>
+                </tr>
+                <tr ng-repeat-end>
+                    <td colspan="6" style="padding: 0;">
+                        <div class="collapse" id="eventBreakdown{{::event.Id}}" style="padding: 8px;">
+                            <table class="table table-bordered table-striped table-condensed">
+                                <thead>
+                                    <tr>
+                                        <th>Player</th>
+                                        <th>Bets</th>
+                                        <th>Bets Won</th>
+                                        <th>Result</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr ng-repeat="player in getPlayerBetsForEvent(event.Id) | orderBy:'PlayerName'">
+                                        <td>{{::player.PlayerName}}</td>
+                                        <td>{{::player.TotalBets}}</td>
+                                        <td>{{::player.BetsWon}}</td>   
+                                        <td><span class="{{::getClassForPlayerCash(player.CashResult)}}">{{::player.CashResult | currency}}</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="col-xs-3">
+        <h4>Standings</h4>
+        <table class="table table-bordered table-striped" style="margin-bottom: 50px;">
+            <tbody>
+                <tr ng-repeat="p in seasonStandings | orderBy: '-CashResult'">
+                    <td><i class="fa {{::getIcon($index)}}" style="color: {{::getColorForIcon($index)}};"></i></td>
+                    <td>{{::p.PlayerName}}</td>
+                    <td>{{::p.CashResult | currency}}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4>Win Percentage</h4>
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr><th>Player</th><th>Bets</th><th>Wins</th><th>Win %</th></tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="p in seasonStandings | orderBy: '-(BetsWon / TotalBets)'">
+                    <td>{{::p.PlayerName}}</td>
+                    <td>{{::p.TotalBets}}</td>
+                    <td>{{::p.BetsWon}}</td>
+                    <td>{{::p.BetsWon / p.TotalBets | percentage:2}}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+
+
+<script type="text/javascript">
+    (function () {
+        var seasonID = @Model;
+
+        angular.module('app', []).controller('SeasonController', function ($scope, $http, toast) {
+            $scope.season = {};
+            $scope.playerBetSummaries = [];
+            $scope.seasonStandings = [];
+
+            $http.get('/api/getSeasonDetails/' + seasonID).then(function(data) {
+                $scope.season = data.data;
+                $http.get('/api/GetPlayerBetSummariesForEvents/' + seasonID).then(function(playerbetdata) {
+                    $scope.playerBetSummaries = playerbetdata.data;
+                });
+            });
+            $http.get('/api/getPlayerStandingsForSeason/' + seasonID).then(function(seasonStandings) {
+                $scope.seasonStandings = seasonStandings.data;
+            });
+
+            $scope.getDateString = function(date) {
+                return moment(date).format('MMMM Do YYYY, h:mm:ss a');
+            };
+
+            $scope.getIcon = function(index) {
+                if (index === 0 || index === 1 || index === 2) {
+                    return 'fa-trophy fa-2x';
+                }
+                if (index === $scope.season.Players.length - 1) {
+                    return 'fa-frown-o fa-2x';
+                }
+                else return 'fa-bookmark-o fa-2x';
+            };
+
+            $scope.getColorForIcon = function (index) {
+                if (index === 0) { return 'gold'; }
+                if (index === 1) { return 'silver'; }
+                if (index === 2) { return 'sienna'; }
+            };
+
+            $scope.getPlayerBetsForEvent = function(eventID) {
+                return _.filter($scope.playerBetSummaries, { 'EventID': eventID });
+            };
+
+            $scope.getClassForPlayerCash = function(cash) {
+                if (angular.isNumber(cash)) {
+                    if (cash > 0) { return 'playerTotalPositive'; }
+                    if (cash < 0) { return 'playerTotalNegative'; }
+                    return 'playerTotalEven';
+                }
+            };
+
+            //$scope.resetSeason = function() {
+            //    $.confirm({
+            //        title: 'Confirm!',
+            //        content: 'Are you sure?',
+            //        confirmButton: 'Yes',
+            //        cancelButton: 'No',
+            //        confirmButtonClass: 'btn-success',
+            //        cancelButtonClass: 'btn-danger',
+            //        confirm: function(){
+            //            confirmResetSeason();
+            //        },
+            //        cancel: function(){
+            //            console.log('cancelled');
+            //        }
+            //    });
+            //};
+
+            //function confirmResetSeason() {
+            //    $http.get('/api/resetSeason/' + seasonID).then(function(data) {
+            //        if (data.data === 'Success') { location.reload(); }
+            //    });
+            //}
+
+        });
+
+        angular.module('app').filter('percentage', ['$filter', function ($filter) {
+            return function (input, decimals) {
+                return $filter('number')(input * 100, decimals) + '%';
+            };
+        }]);
+    })();
+</script>

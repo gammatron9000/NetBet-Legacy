@@ -1,0 +1,67 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>@ViewBag.Title</title>
+    @Styles.Render("~/Content/css")
+    @Scripts.Render("~/bundles/modernizr")
+    <link rel="stylesheet" href="~/Content/angular-busy.css" />
+    <link rel="stylesheet" href="~/Content/isteven-multi-select.css" />
+    <link rel="stylesheet" href="~/Content/toastr.css" />
+    <link rel="stylesheet" href="~/Content/font-awesome.css" />
+    <link rel="stylesheet" href="~/Content/jquery-confirm.css" />
+    <link rel="stylesheet" href="~/Content/EventStyles.css" />
+</head>
+<body>
+    <!-- external libs -->
+    @Scripts.Render("~/bundles/jquery")
+    @Scripts.Render("~/bundles/bootstrap")
+    <script src="~/Scripts/angular.js"></script>
+    <script src="~/Scripts/angular-busy.js"></script>
+    <script src="~/Scripts/lodash.js"></script>
+    <script src="~/Scripts/toastr.js"></script>
+    <script src="~/Scripts/isteven-multi-select.js"></script>
+    <script src="~/Scripts/moment.min.js"></script>
+    <script src="~/Scripts/jquery-confirm.js"></script>
+    <script src="~/App/toastService.js" defer></script>
+
+    <!-- page controllers -->
+    <script src="~/App/seasonsCreateController.js"></script>
+    <script src="~/App/eventBetController.js"></script>
+    <script src="~/App/eventCreateController.js"></script>
+    <script src="~/App/eventEditController.js"></script>
+    <script src="~/App/eventLiveController.js"></script>
+    <script src="~/App/homeController.js"></script>
+    <script src="~/App/playersController.js"></script>
+    <script src="~/App/seasonsController.js"></script>
+
+    <div class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container">
+            <div class="navbar-header">
+                <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                    <span class="icon-bar"></span>
+                </button>
+                @Html.ActionLink("NetBet.net", "Index", "Home", new { area = "" }, new { @class = "navbar-brand" })
+                <span class="fa-stack fa-lg" style="margin-top: 5px;">
+                    <i class="fa fa-usd fa-stack-1x text-success"></i>
+                    <i class="fa fa-ban fa-stack-2x text-danger"></i>
+                </span>
+            </div>
+            <div class="navbar-collapse collapse">
+                <ul class="nav navbar-nav">
+                    @*<li>@Html.ActionLink("Home", "Index", "Home", new { area = "" }, null)</li>*@
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="container body-content">
+        @RenderBody()
+    </div>
+
+
+    @RenderSection("scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,70 @@
+﻿
+<div ng-app="app" ng-controller="PlayerController">
+    <h1>Players</h1>
+
+    <form ng-submit="saveNewPlayer()" style="width: 411px;">
+        <div class="input-group">
+            <input type="text" class="form-control" ng-model="newPlayer.PlayerName" />
+            <span class="input-group-btn">
+                <button class="btn btn-primary" type="submit" ng-disabled="newPlayer.PlayerName === ''">
+                    <i class="glyphicon glyphicon-plus"></i> Create Player
+                </button>
+            </span>
+        </div>
+    </form>
+
+    <div style="margin-top: 50px;">
+        <h4>Current Players</h4>
+        <table class="table table-bordered" style="width: 40%;">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Name</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr ng-repeat="p in players">
+                    <td style="width: 50px;"><a class="btn btn-sm btn-default" href="/players/{{::p.Id}}">Open</a></td>
+                    <td style="vertical-align: middle;">{{::p.PlayerName}}</td>
+                    <td style="width: 50px;"><button class="btn btn-sm btn-default" ng-click="deletePlayer(p)"><i class="glyphicon glyphicon-remove" style="color: red;"></i></button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<script type="text/javascript">
+    (function () {
+        angular.module('app', []).controller('PlayerController', function ($scope, $http) {
+            $scope.newPlayer = { PlayerName: '' };
+            
+            $scope.saveNewPlayer = function () {
+                $http.post('/api/createPlayer', $scope.newPlayer).then(function (data) {
+                    $scope.players = data.data;
+                });
+                $scope.newPlayer = { PlayerName: '' };
+            };
+
+            $scope.players = [];
+            $http.get('/api/players').then(function (data) {
+                $scope.players = data.data;
+                console.log(data);
+            });
+
+            $scope.deletePlayer = function (player) {
+                $http.delete('/api/players/' + player.Id).then(function (data) {
+                    $scope.players = data.data;
+                    console.log(data);
+                });
+            };
+
+            $scope.getPlayer = function (p) {
+                $http.get('/api/players/' + p.Id).then(function (data) {
+                    console.log(data);
+                });
+            };
+
+
+        });
+    })();
+</script>

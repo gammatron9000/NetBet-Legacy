@@ -1,0 +1,255 @@
+﻿@model int
+<div ng-app="app" ng-controller="EventLiveController" cg-busy="promise">
+    <h2 style="width: 80%;">
+        {{event.EventName}}
+        <a class="btn btn-primary pull-right" href="/seasons/index/{{event.SeasonID}}"><i class="fa fa-reply"></i> Back to Season</a>
+    </h2>
+    <!--PLAYER BETS-->
+    <div class="col-xs-8">
+        <div ng-repeat="p in playerBets | orderBy:'playerName'">
+            <h4>{{p.playerName}}</h4>
+            <table class="table table-condensed table-bordered">
+                <thead>
+                    <tr>
+                        <th>Bet</th>
+                        <th>Stake</th>
+                        <th>Odds</th>
+                        <th>To Win</th>
+                        <th>Result</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="bet in p.bets" ng-class="{betWin: bet.Result === 1, betLose: bet.Result === 2}">
+                        <td class="liveBetCell">
+                            <div class="row" ng-repeat="b in bet.IndividualBets | orderBy: 'MatchNumber'">
+                                <div class="col-xs-9" style="padding-right: 0;">
+                                    <span style="vertical-align: middle;">{{b.FighterName}}</span>
+                                </div>
+                                <div clsas="col-xs-3" ng-if="bet.IndividualBets.length > 1" style="padding: 0;">
+                                    <span class="fightResultSmall {{getResultForResultCode(b.Result)}}">
+                                        <i class="fa {{getIconForResult(b.Result)}}"></i>
+                                    </span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="liveBetCell">{{bet.Stake | currency}}</td>
+                        <td class="liveBetCell">{{bet.Odds}}</td>
+                        <td class="liveBetCell">{{calculateWinAmount(bet) | currency}}</td>
+                        <td class="liveBetCell {{getBetResultClass(bet)}}">{{calculateBetResult(bet) | currency}}</td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td style="text-align: right;">Total</td>
+                        <td style="text-align: center;">
+                            <strong class="{{getPlayerTotalClass(p.bets)}}">{{getPlayerTotal(p.bets) | currency}}</strong>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!--MATCHES-->
+    <div class="col-xs-4">
+        <div>
+            Betting Favorites : {{getFavoritesRecord()}}
+        </div>
+
+        <h3>Matches</h3>
+        <table class="table table-condensed table-bordered table-striped">
+            <tbody>
+                <tr ng-repeat="m in matches | orderBy:'MatchNumber'">
+                    <td>
+                        <div>{{m.Line1.FighterName}}</div>
+                        <span class="fightResult {{m.Line1.Result}} btn" ng-click="selectWinner(m.Line1)" ng-disabled="m.Line1.Result !== 'TBD'">{{m.Line1.Result}}</span>
+                        <span style="font-size: smaller;">{{m.Line1.Odds}}</span>
+                    </td>
+                    <td>
+                        <div>{{m.Line2.FighterName}}</div>
+                        <span class="fightResult {{m.Line2.Result}} btn" ng-click="selectWinner(m.Line2)" ng-disabled="m.Line2.Result !== 'TBD'">{{m.Line2.Result}}</span>
+                        <span style="font-size: smaller;">{{m.Line2.Odds}}</span>
+                    </td>
+                    <td>
+                        <span class="fightResult TBD btn" ng-click="selectDraw(m.Line1)" ng-disabled="m.Line1.Result !== 'TBD'">Draw</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+
+<script type="text/javascript">
+    (function () {
+        var eventID = @Model;
+        angular.module('app', []).controller('EventLiveController', function ($scope, $http, toast) {
+            $scope.event = {};
+            $scope.matches = [];
+            $scope.playerBets = [];
+            refreshData(); //initialize happens here
+
+            function refreshData() {
+                $scope.promise = $http.get('/api/getFullEvent/' + eventID).then(function(data) {
+                    $scope.event = data.data;
+                    var groupedMatches = _.groupBy($scope.event.BetLines, 'MatchNumber');
+                    angular.forEach(groupedMatches, function(match) {
+                        $scope.matches.push({
+                            Line1: constructMatch(match[0]),
+                            Line2: constructMatch(match[1])
+                        });
+                    });
+                });
+
+                $http.get('/api/getBetsForEvent/' + eventID).then(function(data) {
+                    $scope.playerBets = [];
+                    var grouped = _.groupBy(data.data, 'PlayerName');
+                    var arrays = _.toArray(grouped);
+                    angular.forEach(arrays, function(x) {
+                        $scope.playerBets.push({
+                            playerName: x[0].PlayerName,
+                            bets: x
+                        });
+                    });
+                });
+            }
+
+            function constructMatch(line) {
+                return {
+                    FighterName: line.FighterName,
+                    Odds: line.Odds,
+                    MatchNumber: line.MatchNumber,
+                    Result: $scope.getResultForResultCode(line.Result)
+                };
+            }
+
+            $scope.getFavoritesRecord = function() {
+                var wins = 0;
+                var losses = 0;
+                var draws = 0;
+                var evens = 0;
+                _.forEach($scope.matches, function(x) {
+                    if (x.Line1.Result !== 'TBD') {
+                        if (x.Line1.Result === 'Lose' && x.Line2.Result === 'Lose') { draws++; }
+                        else if (x.Line1.Odds < 2.0 && x.Line2.Odds < 2.0) { evens++; }
+                        else {
+                            if (x.Line1.Odds < 2.0 && x.Line1.Result === 'Win') { wins++; }
+                            else if (x.Line2.Odds < 2.0 && x.Line2.Result === 'Win') { wins++; }
+                            else { losses++; }
+                        }
+                    } 
+                });
+
+                return wins + 'W-' + losses + 'L, ' + draws + 'D, ' + evens + 'E';
+            };
+
+            $scope.getResultForResultCode = function(result) {
+                if (result === 0) { return 'TBD'; }
+                else if (result === 1) { return 'Win'; }
+                else if (result === 2) { return 'Lose'; }
+            }
+
+            $scope.getIconForResult = function(result) {
+                if (result === 0) { return 'fa-question'; }
+                else if (result === 1) { return 'fa-check'; }
+                else if (result === 2) { return 'fa-remove'; }
+            };
+
+            $scope.calculateWinAmount = function(bet)  {
+                return (bet.Stake * bet.Odds) - bet.Stake;
+            };
+
+            $scope.calculateBetResult = function (bet) {
+                if (bet.Result === 1) {
+                    return (bet.Odds * bet.Stake) - bet.Stake;
+                }  
+                else return 0 - bet.Stake;
+            };
+
+            $scope.getBetResultClass = function(bet) {
+                var value = $scope.calculateBetResult(bet);
+                if (value === 0) { return 'playerTotalEven'; }
+                else if (value > 0) { return 'playerTotalPositive'; }
+                else if (value < 0) { return 'playerTotalNegative'; }
+            };
+
+            $scope.getPlayerTotal = function(playerBets) {
+                var total = 0 - _.sum(_.pluck(playerBets, 'Stake'));
+                angular.forEach(playerBets, function(p) {
+                    if (p.Result === 1) {
+                        total += p.Odds * p.Stake;
+                    }
+                });
+                return total;
+            };
+
+            $scope.getPlayerTotalClass = function(playerBets) {
+                var total = $scope.getPlayerTotal(playerBets);
+                if (total === 0) { return 'playerTotalEven'; }
+                else if (total > 0) { return 'playerTotalPositive'; }
+                else if (total < 0) { return 'playerTotalNegative'; }
+            };
+
+            $scope.selectWinner = function(fighter) {
+                if (fighter.Result === 'TBD') {
+                    $.confirm({
+                        title: fighter.FighterName + ' wins',
+                        content: 'Are you sure?',
+                        confirmButton: 'Yes',
+                        cancelButton: 'No',
+                        confirmButtonClass: 'btn-success',
+                        cancelButtonClass: 'btn-danger',
+                        confirm: function(){
+                            postWinner(fighter);
+                        },
+                        cancel: function(){
+                            console.log('cancelled');
+                        }
+                    });
+                }
+            };
+
+            $scope.selectDraw = function(fighter) {
+                if (fighter.Result === 'TBD') {
+                    $.confirm({
+                        title: fighter.FighterName + ' is a Draw',
+                        content: 'Are you sure?',
+                        confirmButton: 'Yes',
+                        cancelButton: 'No', 
+                        confirmButtonClass: 'btn-success', 
+                        cancelButtonClass: 'btn-danger', 
+                        confirm: function() {
+                            postDraw(fighter);
+                        },
+                        cancel: function() { }
+                    });
+                }
+            };
+
+            function postWinner (fighter) {
+                $scope.promise = $http.post('/api/resolveMatch', { EventID: eventID, FighterName: fighter.FighterName })
+                    .then(function(data) {
+                        console.log('post done');
+                        clearData();
+                        refreshData();
+                    });
+            }
+
+            function postDraw(fighter) {
+                $scope.promise = $http.post('/api/resolveDraw', { EventID: eventID, FighterName: fighter.FighterName })
+                    .then(function(data) {
+                        console.log('draw post done');
+                        clearData();
+                        refreshData();
+                    });
+            }
+
+            function clearData() {
+                $scope.matches = [];
+            }
+
+        });
+    })();
+</script>
